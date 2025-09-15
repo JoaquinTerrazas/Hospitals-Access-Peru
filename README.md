@@ -15,5 +15,5 @@ Se seleccionaron únicamente los hospitales que cumplen con ambas condiciones:
 - Se eliminaron los registros sin **coordenadas geográficas válidas** en las columnas `NORTE` y `ESTE`.  
 - Esto garantiza la posibilidad de realizar un análisis espacial confiable.  
 
-### 🏷 Paso 4: Selección de columnas relevantes
+###  Paso 4: Selección de columnas relevantes
 Se conservaron únicamente las columnas necesarias y se renombraron para mayor claridad.  
