@@ -1,13 +1,4 @@
 import streamlit as st
-
-# ==================== CONFIGURACIÓN DE LA PÁGINA ====================
-st.set_page_config(
-    page_title="Hospital Access Peru Analysis",
-    page_icon="🏥",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
 import pandas as pd
 import matplotlib.pyplot as plt
 import folium
@@ -15,17 +6,7 @@ import tempfile
 import os
 import sys
 
-# ==================== DEBUG TEMPORAL ====================
-# Mostrar información del sistema para debugging
-st.write(f" DEBUG: Directorio actual: {os.getcwd()}")
-st.write(f" DEBUG: Contenido raíz: {os.listdir('.')}")
-if os.path.exists('data'):
-    st.write(f" DEBUG: Contenido data/: {os.listdir('data')}")
-else:
-    st.warning(" DEBUG: Carpeta 'data' no existe")
-
-
-# ==================== CORRECCIÓN DE IMPORTACIONES ====================
+ #==================== CORRECCIÓN DE IMPORTACIONES ====================
 # Agregar la carpeta src al path para importaciones correctas
 current_dir = os.path.dirname(__file__)
 src_dir = os.path.join(current_dir, ".")
@@ -88,10 +69,6 @@ data_dict = load_cached_data()
 # Reemplaza esta parte:
 if data_dict is None or data_dict.get('dataset_cv') is None:
     st.error("Error al cargar los datos. Por favor verifica las rutas de los archivos.")
-    
-    st.write("**Información de debug:**")
-    st.code(f"Directorio actual: {os.getcwd()}")
-    st.code(f"Contenido de data/: {os.listdir('data') if os.path.exists('data') else 'No existe'}")
     st.stop()
 
 # Crear pestañas
