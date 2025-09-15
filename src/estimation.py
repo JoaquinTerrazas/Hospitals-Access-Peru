@@ -6,9 +6,10 @@ import numpy as np
 from shapely.geometry import Point
 
 # ==================== CONFIGURACIÓN DE RUTAS ====================
-RUTA_HOSPITALES = "C:/Users/Usuario/Desktop/CICLOWAA8/data science/Hospitals-Access-Peru/data/IPRESS.csv"
-RUTA_SHAPEFILE = "C:/Users/Usuario/Desktop/CICLOWAA8/data science/Hospitals-Access-Peru/data/shape_file/DISTRITOS.shp"
-RUTA_CCPP = "C:/Users/Usuario/Desktop/CICLOWAA8/data science/Hospitals-Access-Peru/data/CCPP_0.zip"
+RUTA_HOSPITALES = "data/IPRESS.csv"
+RUTA_SHAPEFILE = "data/shape_file/DISTRITOS.shp"
+RUTA_CCPP = "data/CCPP_0.zip"
+
 
 def load_and_clean_hospitals():
     """Cargar y limpiar datos de hospitales - Filtros: ACTIVADO + EN FUNCIONAMIENTO + coordenadas válidas"""
