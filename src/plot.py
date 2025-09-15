@@ -5,6 +5,7 @@ from folium.plugins import MarkerCluster
 import geopandas as gpd
 import streamlit as st
 
+
 # Configurar estilo de gráficos
 plt.style.use('default')
 sns.set_palette("viridis")

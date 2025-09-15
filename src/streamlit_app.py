@@ -5,6 +5,35 @@ from estimation import load_all_data
 from plot import generate_all_visualizations
 import folium
 from streamlit_folium import st_folium
+import tempfile
+import base64
+import os
+
+def show_folium_map(folium_map, width=700, height=500):
+    """Mostrar mapa Folium de manera estable usando archivos temporales"""
+    if folium_map is None:
+        st.warning("Mapa no disponible")
+        return
+    
+    try:
+        # Crear archivo temporal
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.html') as f:
+            folium_map.save(f.name)
+            html_file = f.name
+        
+        # Leer y mostrar el HTML
+        with open(html_file, 'r', encoding='utf-8') as f:
+            html_content = f.read()
+        
+        # Mostrar como componente
+        st.components.v1.html(html_content, width=width, height=height, scrolling=True)
+        
+        # Limpiar archivo temporal
+        os.unlink(html_file)
+        
+    except Exception as e:
+        st.error(f"Error mostrando mapa: {e}")
+
 
 # Configuración de la página
 st.set_page_config(
@@ -19,7 +48,7 @@ st.title("🏥 Análisis de Acceso a Hospitales en Perú")
 st.markdown("---")
 
 # Cargar datos (solo cache para datos, no para visualizaciones)
-@st.cache_data(show_spinner="Cargando datos...")
+@st.cache_data(show_spinner="Cargando datos...", hash_funcs={folium.Map: lambda _: None})
 def load_cached_data():
     return load_all_data()
 
@@ -148,16 +177,22 @@ with tab3:
     
     # Solo generar visualizaciones cuando se accede a esta pestaña
     if 'tab3_visualizations' not in st.session_state:
-        with st.spinner("Generando mapas interactivos..."):
-            st.session_state.tab3_visualizations = generate_visualizations_no_cache(data_dict)
-    
+        # Usar un placeholder para el spinner
+        spinner_placeholder = st.empty()
+        with spinner_placeholder:
+            with st.spinner("Generando mapas interactivos..."):
+                tab3_visualizations = generate_visualizations_no_cache(data_dict)
+                st.session_state.tab3_visualizations = tab3_visualizations
+        
+        # Limpiar el spinner después de terminar
+        spinner_placeholder.empty()
+
     visualizations = st.session_state.tab3_visualizations
-    
     # Mapa nacional
     st.subheader("Mapa Nacional - Hospitales por Distrito")
     
     if visualizations and visualizations['national_map']:
-        st_folium(visualizations['national_map'], width=700, height=500)
+        show_folium_map(visualizations['national_map'], width=700, height=500)
     else:
         st.error("Error generando mapa nacional")
     
@@ -178,14 +213,14 @@ with tab3:
         
         with col1:
             if 'lima_aislado' in visualizations['proximity_maps'] and visualizations['proximity_maps']['lima_aislado']:
-                st_folium(visualizations['proximity_maps']['lima_aislado'], width=350, height=400)
+                show_folium_map(visualizations['proximity_maps']['lima_aislado'], width=350, height=400)
                 st.caption("Lima: Centro más aislado (menos hospitales en 10km)")
             else:
                 st.warning("Mapa de Lima aislado no disponible")
         
         with col2:
             if 'lima_concentrado' in visualizations['proximity_maps'] and visualizations['proximity_maps']['lima_concentrado']:
-                st_folium(visualizations['proximity_maps']['lima_concentrado'], width=350, height=400)
+                show_folium_map(visualizations['proximity_maps']['lima_concentrado'], width=350, height=400)
                 st.caption("Lima: Centro más concentrado (más hospitales en 10km)")
             else:
                 st.warning("Mapa de Lima concentrado no disponible")
@@ -199,14 +234,14 @@ with tab3:
         
         with col1:
             if 'loreto_aislado' in visualizations['proximity_maps'] and visualizations['proximity_maps']['loreto_aislado']:
-                st_folium(visualizations['proximity_maps']['loreto_aislado'], width=350, height=400)
+                show_folium_map(visualizations['proximity_maps']['loreto_aislado'], width=350, height=400)
                 st.caption("Loreto: Centro más aislado (menos hospitales en 10km)")
             else:
                 st.warning("Mapa de Loreto aislado no disponible")
         
         with col2:
             if 'loreto_concentrado' in visualizations['proximity_maps'] and visualizations['proximity_maps']['loreto_concentrado']:
-                st_folium(visualizations['proximity_maps']['loreto_concentrado'], width=350, height=400)
+                show_folium_map(visualizations['proximity_maps']['loreto_concentrado'], width=350, height=400)
                 st.caption("Loreto: Centro más concentrado (más hospitales en 10km)")
             else:
                 st.warning("Mapa de Loreto concentrado no disponible")
