@@ -1,4 +1,14 @@
 import streamlit as st
+
+# CONFIGURACIÓN DE PÁGINA DEBE SER LO PRIMERO
+st.set_page_config(
+    page_title="Hospital Access Peru Analysis",
+    page_icon="🏥",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# Ahora las importaciones restantes
 import pandas as pd
 import matplotlib.pyplot as plt
 import folium
@@ -9,20 +19,15 @@ import sys
 # ==================== CORRECCIÓN DE IMPORTACIONES ====================
 # Agregar la carpeta src al path para importaciones correctas
 current_dir = os.path.dirname(__file__)
-src_dir = os.path.join(current_dir, ".")
-sys.path.append(src_dir)
+sys.path.insert(0, current_dir)
 
-# Configuración de la página DEBE ser lo primero
-st.set_page_config(
-    page_title="Hospital Access Peru Analysis",
-    page_icon="🏥",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
-# Ahora importar los módulos DESPUÉS de set_page_config
-from estimation import load_all_data
-from plot import generate_all_visualizations
+# Importar módulos después de configurar el path
+try:
+    from estimation import load_all_data
+    from plot import generate_all_visualizations
+except ImportError as e:
+    st.error(f"Error importing modules: {e}")
+    st.stop()
 
 def show_folium_map(folium_map, width=700, height=500):
     """Mostrar mapa Folium de manera estable usando archivos temporales"""
@@ -56,12 +61,20 @@ st.markdown("---")
 # Cargar datos (solo cache para datos, no para visualizaciones)
 @st.cache_data(show_spinner="Cargando datos...")
 def load_cached_data():
-    return load_all_data()
+    try:
+        return load_all_data()
+    except Exception as e:
+        st.error(f"Error loading data: {e}")
+        return None
 
 # Función para generar visualizaciones sin cache (porque Folium no es serializable)
 def generate_visualizations_no_cache(data_dict):
     """Generar visualizaciones sin cache para evitar problemas de serialización"""
-    return generate_all_visualizations(data_dict)
+    try:
+        return generate_all_visualizations(data_dict)
+    except Exception as e:
+        st.error(f"Error generating visualizations: {e}")
+        return None
 
 # Cargar datos
 data_dict = load_cached_data()
@@ -100,27 +113,34 @@ with tab1:
     
     # Métricas clave
     st.subheader("Métricas Clave")
-    col1, col2, col3, col4 = st.columns(4)
     
-    with col1:
-        total_hospitals = len(data_dict['dataset_cv'])
-        st.metric("Total Hospitales", total_hospitals)
-    
-    with col2:
-        total_departments = data_dict['dept_stats']['DEPARTAMENTO'].nunique()
-        st.metric("Departamentos", total_departments)
-    
-    with col3:
-        total_districts = data_dict['map_data']['UBIGEO'].nunique()
-        st.metric("Distritos", total_districts)
-    
-    with col4:
-        zero_hospitals = (data_dict['map_data']['num_hospitales'] == 0).sum()
-        st.metric("Distritos sin Hospitales", zero_hospitals)
+    try:
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            total_hospitals = len(data_dict['dataset_cv'])
+            st.metric("Total Hospitales", total_hospitals)
+        
+        with col2:
+            total_departments = data_dict['dept_stats']['DEPARTAMENTO'].nunique()
+            st.metric("Departamentos", total_departments)
+        
+        with col3:
+            total_districts = data_dict['map_data']['UBIGEO'].nunique()
+            st.metric("Distritos", total_districts)
+        
+        with col4:
+            zero_hospitals = (data_dict['map_data']['num_hospitales'] == 0).sum()
+            st.metric("Distritos sin Hospitales", zero_hospitals)
+    except Exception as e:
+        st.error(f"Error displaying metrics: {e}")
     
     # Mostrar sample de datos
     st.subheader("Muestra de Datos de Hospitales")
-    st.dataframe(data_dict['dataset_cv'][['NOMBRE', 'DEPARTAMENTO', 'LATITUD', 'LONGITUD']].head(10))
+    try:
+        st.dataframe(data_dict['dataset_cv'][['NOMBRE', 'DEPARTAMENTO', 'LATITUD', 'LONGITUD']].head(10))
+    except Exception as e:
+        st.error(f"Error displaying data sample: {e}")
 
 with tab2:
     st.header("Mapas Estáticos y Análisis Departamental")
@@ -135,69 +155,80 @@ with tab2:
     # Mapas estáticos
     st.subheader("Mapas de Distribución de Hospitales")
     
-    if visualizations and visualizations['static_maps']:
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.pyplot(visualizations['static_maps']['map1_hospitales_distrito'])
-            st.caption("Mapa 1: Hospitales por Distrito")
-        
-        with col2:
-            st.pyplot(visualizations['static_maps']['map2_distritos_sin_hospitales'])
-            st.caption("Mapa 2: Distritos sin Hospitales")
-        
-        st.pyplot(visualizations['static_maps']['map3_top10_distritos'])
-        st.caption("Mapa 3: Top 10 Distritos con Más Hospitales")
+    if visualizations and visualizations.get('static_maps'):
+        try:
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                if 'map1_hospitales_distrito' in visualizations['static_maps']:
+                    st.pyplot(visualizations['static_maps']['map1_hospitales_distrito'])
+                    st.caption("Mapa 1: Hospitales por Distrito")
+                else:
+                    st.warning("Mapa 1 no disponible")
+            
+            with col2:
+                if 'map2_distritos_sin_hospitales' in visualizations['static_maps']:
+                    st.pyplot(visualizations['static_maps']['map2_distritos_sin_hospitales'])
+                    st.caption("Mapa 2: Distritos sin Hospitales")
+                else:
+                    st.warning("Mapa 2 no disponible")
+            
+            if 'map3_top10_distritos' in visualizations['static_maps']:
+                st.pyplot(visualizations['static_maps']['map3_top10_distritos'])
+                st.caption("Mapa 3: Top 10 Distritos con Más Hospitales")
+            else:
+                st.warning("Mapa 3 no disponible")
+                
+        except Exception as e:
+            st.error(f"Error displaying static maps: {e}")
     else:
         st.error("Error generando mapas estáticos")
     
     # Análisis departamental
     st.subheader("Análisis por Departamento")
     
-    # Tabla resumen
-    st.write("**Tabla Resumen - Hospitales por Departamento**")
-    st.dataframe(data_dict['dept_stats'].sort_values('total_hospitals', ascending=False))
-    
-    # Gráfico de barras
-    st.write("**Gráfico de Barras - Distribución por Departamento**")
-    if visualizations and visualizations['bar_chart']:
-        st.pyplot(visualizations['bar_chart'])
-    else:
-        st.error("Error generando gráfico de barras")
-    
-    # Estadísticas departamentales
-    st.subheader("Estadísticas Clave")
-    highest_dept = data_dict['dept_stats'].iloc[0]
-    lowest_dept = data_dict['dept_stats'].iloc[-1]
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.info(f"**Departamento con más hospitales**: {highest_dept['DEPARTAMENTO']} ({highest_dept['total_hospitals']} hospitales)")
-    
-    with col2:
-        st.warning(f"**Departamento con menos hospitales**: {lowest_dept['DEPARTAMENTO']} ({lowest_dept['total_hospitals']} hospitales)")
+    try:
+        # Tabla resumen
+        st.write("**Tabla Resumen - Hospitales por Departamento**")
+        st.dataframe(data_dict['dept_stats'].sort_values('total_hospitals', ascending=False))
+        
+        # Gráfico de barras
+        st.write("**Gráfico de Barras - Distribución por Departamento**")
+        if visualizations and visualizations.get('bar_chart'):
+            st.pyplot(visualizations['bar_chart'])
+        else:
+            st.error("Error generando gráfico de barras")
+        
+        # Estadísticas departamentales
+        st.subheader("Estadísticas Clave")
+        highest_dept = data_dict['dept_stats'].iloc[0]
+        lowest_dept = data_dict['dept_stats'].iloc[-1]
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.info(f"**Departamento con más hospitales**: {highest_dept['DEPARTAMENTO']} ({highest_dept['total_hospitals']} hospitales)")
+        
+        with col2:
+            st.warning(f"**Departamento con menos hospitales**: {lowest_dept['DEPARTAMENTO']} ({lowest_dept['total_hospitals']} hospitales)")
+            
+    except Exception as e:
+        st.error(f"Error in department analysis: {e}")
 
 with tab3:
     st.header("Mapas Interactivos Dinámicos")
     
     # Solo generar visualizaciones cuando se accede a esta pestaña
     if 'tab3_visualizations' not in st.session_state:
-        # Usar un placeholder para el spinner
-        spinner_placeholder = st.empty()
-        with spinner_placeholder:
-            with st.spinner("Generando mapas interactivos..."):
-                tab3_visualizations = generate_visualizations_no_cache(data_dict)
-                st.session_state.tab3_visualizations = tab3_visualizations
-        
-        # Limpiar el spinner después de terminar
-        spinner_placeholder.empty()
+        with st.spinner("Generando mapas interactivos..."):
+            st.session_state.tab3_visualizations = generate_visualizations_no_cache(data_dict)
 
     visualizations = st.session_state.tab3_visualizations
+    
     # Mapa nacional
     st.subheader("Mapa Nacional - Hospitales por Distrito")
     
-    if visualizations and visualizations['national_map']:
+    if visualizations and visualizations.get('national_map'):
         show_folium_map(visualizations['national_map'], width=700, height=500)
     else:
         st.error("Error generando mapa nacional")
@@ -212,56 +243,60 @@ with tab3:
     - 🟢 Marcadores Verdes: Hospitales dentro del radio de 10km
     """)
     
-    # Lima
-    st.write("### 🏙️ Lima - Concentración Urbana y Accesibilidad")
-    if visualizations and visualizations['proximity_maps']:
-        col1, col2 = st.columns(2)
+    try:
+        # Lima
+        st.write("### 🏙️ Lima - Concentración Urbana y Accesibilidad")
+        if visualizations and visualizations.get('proximity_maps'):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                if 'lima_aislado' in visualizations['proximity_maps'] and visualizations['proximity_maps']['lima_aislado']:
+                    show_folium_map(visualizations['proximity_maps']['lima_aislado'], width=350, height=400)
+                    st.caption("Lima: Centro más aislado (menos hospitales en 10km)")
+                else:
+                    st.warning("Mapa de Lima aislado no disponible")
+            
+            with col2:
+                if 'lima_concentrado' in visualizations['proximity_maps'] and visualizations['proximity_maps']['lima_concentrado']:
+                    show_folium_map(visualizations['proximity_maps']['lima_concentrado'], width=350, height=400)
+                    st.caption("Lima: Centro más concentrado (más hospitales en 10km)")
+                else:
+                    st.warning("Mapa de Lima concentrado no disponible")
+        else:
+            st.error("Error generando mapas de proximidad para Lima")
         
-        with col1:
-            if 'lima_aislado' in visualizations['proximity_maps'] and visualizations['proximity_maps']['lima_aislado']:
-                show_folium_map(visualizations['proximity_maps']['lima_aislado'], width=350, height=400)
-                st.caption("Lima: Centro más aislado (menos hospitales en 10km)")
-            else:
-                st.warning("Mapa de Lima aislado no disponible")
+        # Loreto
+        st.write("### 🌳 Loreto - Dispersión Geográfica y Desafíos Amazónicos")
+        if visualizations and visualizations.get('proximity_maps'):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                if 'loreto_aislado' in visualizations['proximity_maps'] and visualizations['proximity_maps']['loreto_aislado']:
+                    show_folium_map(visualizations['proximity_maps']['loreto_aislado'], width=350, height=400)
+                    st.caption("Loreto: Centro más aislado (menos hospitales en 10km)")
+                else:
+                    st.warning("Mapa de Loreto aislado no disponible")
+            
+            with col2:
+                if 'loreto_concentrado' in visualizations['proximity_maps'] and visualizations['proximity_maps']['loreto_concentrado']:
+                    show_folium_map(visualizations['proximity_maps']['loreto_concentrado'], width=350, height=400)
+                    st.caption("Loreto: Centro más concentrado (más hospitales en 10km)")
+                else:
+                    st.warning("Mapa de Loreto concentrado no disponible")
         
-        with col2:
-            if 'lima_concentrado' in visualizations['proximity_maps'] and visualizations['proximity_maps']['lima_concentrado']:
-                show_folium_map(visualizations['proximity_maps']['lima_concentrado'], width=350, height=400)
-                st.caption("Lima: Centro más concentrado (más hospitales en 10km)")
-            else:
-                st.warning("Mapa de Lima concentrado no disponible")
-    else:
-        st.error("Error generando mapas de proximidad")
-    
-    # Loreto
-    st.write("### 🌳 Loreto - Dispersión Geográfica y Desafíos Amazónicos")
-    if visualizations and visualizations['proximity_maps']:
-        col1, col2 = st.columns(2)
+        # Análisis breve
+        st.subheader("Análisis Comparativo")
+        st.write("""
+        **Lima**: Muestra patrones de concentración urbana con mejor accesibilidad a servicios de salud 
+        en áreas metropolitanas, típico de entornos urbanos densos.
         
-        with col1:
-            if 'loreto_aislado' in visualizations['proximity_maps'] and visualizations['proximity_maps']['loreto_aislado']:
-                show_folium_map(visualizations['proximity_maps']['loreto_aislado'], width=350, height=400)
-                st.caption("Loreto: Centro más aislado (menos hospitales en 10km)")
-            else:
-                st.warning("Mapa de Loreto aislado no disponible")
+        **Loreto**: Evidencia los desafíos de dispersión geográfica característicos de la Amazonía, 
+        con mayores distancias entre centros de salud y poblaciones, reflejando la necesidad de 
+        estrategias de salud móvil o itinerante.
+        """)
         
-        with col2:
-            if 'loreto_concentrado' in visualizations['proximity_maps'] and visualizations['proximity_maps']['loreto_concentrado']:
-                show_folium_map(visualizations['proximity_maps']['loreto_concentrado'], width=350, height=400)
-                st.caption("Loreto: Centro más concentrado (más hospitales en 10km)")
-            else:
-                st.warning("Mapa de Loreto concentrado no disponible")
-    
-    # Análisis breve
-    st.subheader("Análisis Comparativo")
-    st.write("""
-    **Lima**: Muestra patrones de concentración urbana con mejor accesibilidad a servicios de salud 
-    en áreas metropolitanas, típico de entornos urbanos densos.
-    
-    **Loreto**: Evidencia los desafíos de dispersión geográfica característicos de la Amazonía, 
-    con mayores distancias entre centros de salud y poblaciones, reflejando la necesidad de 
-    estrategias de salud móvil o itinerante.
-    """)
+    except Exception as e:
+        st.error(f"Error in proximity maps: {e}")
 
 # Footer
 st.markdown("---")

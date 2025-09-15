@@ -62,7 +62,21 @@ def load_and_clean_hospitals():
 def load_and_process_shapefile():
     """Cargar y procesar shapefile de distritos"""
     try:
-        maps = gpd.read_file(RUTA_SHAPEFILE)
+        # Alternativas para leer el shapefile dependiendo de la versión de Fiona
+        try:
+            maps = gpd.read_file(RUTA_SHAPEFILE)
+        except Exception as fiona_error:
+            print(f"Error with standard read_file: {fiona_error}")
+            # Alternativa para versiones más nuevas de GeoPandas/Fiona
+            import fiona
+            try:
+                with fiona.open(RUTA_SHAPEFILE) as src:
+                    maps = gpd.GeoDataFrame.from_features(src)
+            except Exception as alt_error:
+                print(f"Error with alternative method: {alt_error}")
+                # Como último recurso, usar un método más directo
+                maps = gpd.read_file(f"/{RUTA_SHAPEFILE}")
+        
         maps = maps[['IDDIST', 'DISTRITO', 'geometry']]
         maps = maps.rename(columns={'IDDIST': 'UBIGEO'})
         maps['UBIGEO'] = maps['UBIGEO'].astype(str).astype(int)
@@ -111,7 +125,18 @@ def load_and_process_ccpp():
             return None
             
         # Leer archivo ZIP correctamente para Streamlit Cloud
-        ccpp = gpd.read_file(f"zip://{RUTA_CCPP}")
+        try:
+            # Método 1: Formato zip estándar
+            ccpp = gpd.read_file(f"zip://{RUTA_CCPP}")
+        except Exception as zip_error:
+            print(f"Error with zip format: {zip_error}")
+            try:
+                # Método 2: Leer directamente
+                ccpp = gpd.read_file(RUTA_CCPP)
+            except Exception as direct_error:
+                print(f"Error with direct read: {direct_error}")
+                print("Skipping CCPP processing due to file read errors")
+                return None
         
         # Verificar columnas disponibles
         print("Columnas CCPP disponibles:", ccpp.columns.tolist())
@@ -151,8 +176,17 @@ def load_and_process_ccpp():
 def analyze_proximity(ccpp_gdf, hospitals_gdf, department_name):
     """Analizar proximidad para un departamento específico"""
     try:
+        if ccpp_gdf is None:
+            print(f"CCPP data not available for {department_name}")
+            return None, None, None
+            
         # Filtrar por departamento
         department_ccpp = ccpp_gdf[ccpp_gdf['NOMBDEP'] == department_name.upper()].copy()
+        
+        if len(department_ccpp) == 0:
+            print(f"No CCPP data found for department: {department_name}")
+            return None, None, None
+            
         department_ccpp = department_ccpp.to_crs(epsg=4326)
         
         # Crear buffers de 10km
@@ -187,54 +221,76 @@ def analyze_proximity(ccpp_gdf, hospitals_gdf, department_name):
 # Función principal para cargar todos los datos
 def load_all_data():
     """Cargar y procesar todos los datos"""
-    print("Loading hospital data...")
-    hospitals = load_and_clean_hospitals()
-    if hospitals is None:
+    try:
+        print("Loading hospital data...")
+        hospitals = load_and_clean_hospitals()
+        if hospitals is None:
+            print("Failed to load hospital data")
+            return None
+        
+        print("Loading shapefile...")
+        maps = load_and_process_shapefile()
+        if maps is None:
+            print("Failed to load shapefile")
+            return None
+        
+        print("Merging data...")
+        dataset_cv = merge_hospitals_with_shapefile(hospitals, maps)
+        if dataset_cv is None:
+            print("Failed to merge data")
+            return None
+        
+        print("Calculating hospital counts...")
+        map_data = calculate_hospital_counts(dataset_cv, maps)
+        if map_data is None:
+            print("Failed to calculate hospital counts")
+            return None
+        
+        print("Calculating department stats...")
+        dept_stats = calculate_department_stats(dataset_cv)
+        if dept_stats is None:
+            print("Failed to calculate department stats")
+            return None
+        
+        print("Loading population centers...")
+        ccpp = load_and_process_ccpp()
+        # CCPP es opcional, continuar sin él si falla
+        
+        # Crear GeoDataFrame de hospitales para análisis espacial
+        try:
+            gdf_hospitales = gpd.GeoDataFrame(
+                dataset_cv, 
+                geometry=gpd.points_from_xy(dataset_cv.LONGITUD, dataset_cv.LATITUD),
+                crs="EPSG:4326"
+            )
+        except Exception as e:
+            print(f"Error creating hospital GeoDataFrame: {e}")
+            return None
+        
+        # Análisis de proximidad (opcional)
+        lima_analysis = (None, None, None)
+        loreto_analysis = (None, None, None)
+        
+        if ccpp is not None:
+            print("Analyzing proximity for Lima...")
+            lima_analysis = analyze_proximity(ccpp, gdf_hospitales, "LIMA")
+            
+            print("Analyzing proximity for Loreto...")
+            loreto_analysis = analyze_proximity(ccpp, gdf_hospitales, "LORETO")
+        else:
+            print("Skipping proximity analysis due to missing CCPP data")
+        
+        return {
+            'hospitals': hospitals,
+            'maps': maps,
+            'dataset_cv': dataset_cv,
+            'map_data': map_data,
+            'dept_stats': dept_stats,
+            'gdf_hospitales': gdf_hospitales,
+            'lima_analysis': lima_analysis,
+            'loreto_analysis': loreto_analysis
+        }
+        
+    except Exception as e:
+        print(f"Critical error in load_all_data: {e}")
         return None
-    
-    print("Loading shapefile...")
-    maps = load_and_process_shapefile()
-    if maps is None:
-        return None
-    
-    print("Merging data...")
-    dataset_cv = merge_hospitals_with_shapefile(hospitals, maps)
-    if dataset_cv is None:
-        return None
-    
-    print("Calculating hospital counts...")
-    map_data = calculate_hospital_counts(dataset_cv, maps)
-    if map_data is None:
-        return None
-    
-    print("Calculating department stats...")
-    dept_stats = calculate_department_stats(dataset_cv)
-    if dept_stats is None:
-        return None
-    
-    print("Loading population centers...")
-    ccpp = load_and_process_ccpp()
-    
-    # Crear GeoDataFrame de hospitales para análisis espacial
-    gdf_hospitales = gpd.GeoDataFrame(
-        dataset_cv, 
-        geometry=gpd.points_from_xy(dataset_cv.LONGITUD, dataset_cv.LATITUD),
-        crs="EPSG:4326"
-    )
-    
-    print("Analyzing proximity for Lima...")
-    lima_isolated, lima_concentrated, lima_ccpp = analyze_proximity(ccpp, gdf_hospitales, "LIMA") if ccpp is not None else (None, None, None)
-    
-    print("Analyzing proximity for Loreto...")
-    loreto_isolated, loreto_concentrated, loreto_ccpp = analyze_proximity(ccpp, gdf_hospitales, "LORETO") if ccpp is not None else (None, None, None)
-    
-    return {
-        'hospitals': hospitals,
-        'maps': maps,
-        'dataset_cv': dataset_cv,
-        'map_data': map_data,
-        'dept_stats': dept_stats,
-        'gdf_hospitales': gdf_hospitales,
-        'lima_analysis': (lima_isolated, lima_concentrated, lima_ccpp),
-        'loreto_analysis': (loreto_isolated, loreto_concentrated, loreto_ccpp)
-    }
