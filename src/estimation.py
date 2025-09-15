@@ -6,9 +6,14 @@ import numpy as np
 from shapely.geometry import Point
 
 # ==================== CONFIGURACIÓN DE RUTAS ====================
-RUTA_HOSPITALES = "data/IPRESS.csv"
-RUTA_SHAPEFILE = "data/shape_file/DISTRITOS.shp"
-RUTA_CCPP = "data/CCPP_0.zip"
+# Obtener la ruta del directorio actual del script
+current_dir = os.path.dirname(__file__)
+data_dir = os.path.join(current_dir, "..", "data")
+
+# Rutas relativas para Streamlit Cloud
+RUTA_HOSPITALES = os.path.join(data_dir, "IPRESS.csv")
+RUTA_SHAPEFILE = os.path.join(data_dir, "shape_file", "DISTRITOS.shp")
+RUTA_CCPP = os.path.join(data_dir, "CCPP_0.zip")
 
 
 def load_and_clean_hospitals():
@@ -101,7 +106,8 @@ def load_and_process_ccpp():
             print(f"Warning: CCPP file not found at {RUTA_CCPP}")
             return None
             
-        ccpp = gpd.read_file(RUTA_CCPP)
+        # Leer archivo ZIP correctamente para Streamlit Cloud
+        ccpp = gpd.read_file(f"zip://{RUTA_CCPP}")
         
         # Verificar columnas disponibles
         print("Columnas CCPP disponibles:", ccpp.columns.tolist())

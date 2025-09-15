@@ -1,13 +1,20 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
+import folium
+import tempfile
+import os
+import sys
+
+# ==================== CORRECCIÓN DE IMPORTACIONES ====================
+# Agregar la carpeta src al path para importaciones correctas
+current_dir = os.path.dirname(__file__)
+src_dir = os.path.join(current_dir, ".")
+sys.path.append(src_dir)
+
+# Ahora importar los módulos
 from estimation import load_all_data
 from plot import generate_all_visualizations
-import folium
-from streamlit_folium import st_folium
-import tempfile
-import base64
-import os
 
 def show_folium_map(folium_map, width=700, height=500):
     """Mostrar mapa Folium de manera estable usando archivos temporales"""
@@ -33,7 +40,6 @@ def show_folium_map(folium_map, width=700, height=500):
         
     except Exception as e:
         st.error(f"Error mostrando mapa: {e}")
-
 
 # Configuración de la página
 st.set_page_config(
@@ -61,7 +67,7 @@ def generate_visualizations_no_cache(data_dict):
 data_dict = load_cached_data()
 
 # Verificar que los datos se cargaron correctamente
-if data_dict is None or data_dict['dataset_cv'] is None:
+if data_dict is None or data_dict.get('dataset_cv') is None:
     st.error("Error al cargar los datos. Por favor verifica las rutas de los archivos.")
     st.stop()
 
