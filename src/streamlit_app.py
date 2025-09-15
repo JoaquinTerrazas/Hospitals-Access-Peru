@@ -6,13 +6,21 @@ import tempfile
 import os
 import sys
 
- #==================== CORRECCIÓN DE IMPORTACIONES ====================
+# ==================== CORRECCIÓN DE IMPORTACIONES ====================
 # Agregar la carpeta src al path para importaciones correctas
 current_dir = os.path.dirname(__file__)
 src_dir = os.path.join(current_dir, ".")
 sys.path.append(src_dir)
 
-# Ahora importar los módulos
+# Configuración de la página DEBE ser lo primero
+st.set_page_config(
+    page_title="Hospital Access Peru Analysis",
+    page_icon="🏥",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# Ahora importar los módulos DESPUÉS de set_page_config
 from estimation import load_all_data
 from plot import generate_all_visualizations
 
@@ -41,20 +49,12 @@ def show_folium_map(folium_map, width=700, height=500):
     except Exception as e:
         st.error(f"Error mostrando mapa: {e}")
 
-# Configuración de la página
-st.set_page_config(
-    page_title="Hospital Access Peru Analysis",
-    page_icon="🏥",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
 # Título principal
 st.title("🏥 Análisis de Acceso a Hospitales en Perú")
 st.markdown("---")
 
 # Cargar datos (solo cache para datos, no para visualizaciones)
-@st.cache_data(show_spinner="Cargando datos...", hash_funcs={folium.Map: lambda _: None})
+@st.cache_data(show_spinner="Cargando datos...")
 def load_cached_data():
     return load_all_data()
 
@@ -66,7 +66,7 @@ def generate_visualizations_no_cache(data_dict):
 # Cargar datos
 data_dict = load_cached_data()
 
-# Reemplaza esta parte:
+# Verificar que los datos se cargaron correctamente
 if data_dict is None or data_dict.get('dataset_cv') is None:
     st.error("Error al cargar los datos. Por favor verifica las rutas de los archivos.")
     st.stop()
