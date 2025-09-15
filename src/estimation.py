@@ -6,15 +6,15 @@ import numpy as np
 from shapely.geometry import Point
 
 # ==================== CONFIGURACIÓN DE RUTAS ====================
-# Obtener la ruta del directorio actual del script
+# Obtener la ruta base del proyecto (raíz del repositorio)
 current_dir = os.path.dirname(__file__)
-data_dir = os.path.join(current_dir, "..", "data")
+project_root = os.path.abspath(os.path.join(current_dir, ".."))
+data_dir = os.path.join(project_root, "data")
 
-# Rutas relativas para Streamlit Cloud
+# Rutas para Streamlit Cloud
 RUTA_HOSPITALES = os.path.join(data_dir, "IPRESS.csv")
 RUTA_SHAPEFILE = os.path.join(data_dir, "shape_file", "DISTRITOS.shp")
 RUTA_CCPP = os.path.join(data_dir, "CCPP_0.zip")
-
 
 def load_and_clean_hospitals():
     """Cargar y limpiar datos de hospitales - Filtros: ACTIVADO + EN FUNCIONAMIENTO + coordenadas válidas"""
