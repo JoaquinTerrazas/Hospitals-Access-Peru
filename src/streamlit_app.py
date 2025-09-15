@@ -66,9 +66,13 @@ def generate_visualizations_no_cache(data_dict):
 # Cargar datos
 data_dict = load_cached_data()
 
-# Verificar que los datos se cargaron correctamente
+# Reemplaza esta parte:
 if data_dict is None or data_dict.get('dataset_cv') is None:
     st.error("Error al cargar los datos. Por favor verifica las rutas de los archivos.")
+    
+    st.write("**Información de debug:**")
+    st.code(f"Directorio actual: {os.getcwd()}")
+    st.code(f"Contenido de data/: {os.listdir('data') if os.path.exists('data') else 'No existe'}")
     st.stop()
 
 # Crear pestañas

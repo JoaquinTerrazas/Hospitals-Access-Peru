@@ -11,14 +11,25 @@ current_dir = os.path.dirname(__file__)
 project_root = os.path.abspath(os.path.join(current_dir, ".."))
 data_dir = os.path.join(project_root, "data")
 
-# Rutas para Streamlit Cloud
+# Rutas absolutas para Streamlit Cloud
 RUTA_HOSPITALES = os.path.join(data_dir, "IPRESS.csv")
 RUTA_SHAPEFILE = os.path.join(data_dir, "shape_file", "DISTRITOS.shp")
 RUTA_CCPP = os.path.join(data_dir, "CCPP_0.zip")
 
+# Debug: Verificar rutas (útil para troubleshooting)
+print(f"Project root: {project_root}")
+print(f"Data directory: {data_dir}")
+print(f"Hospitales path: {RUTA_HOSPITALES}")
+print(f"Shapefile path: {RUTA_SHAPEFILE}")
+print(f"CCPP path: {RUTA_CCPP}")
+
 def load_and_clean_hospitals():
-    """Cargar y limpiar datos de hospitales - Filtros: ACTIVADO + EN FUNCIONAMIENTO + coordenadas válidas"""
+    """Cargar y limpiar datos de hospitales"""
     try:
+        # Verificar si el archivo existe
+        if not os.path.exists(RUTA_HOSPITALES):
+            print(f"ERROR: Archivo no encontrado en {RUTA_HOSPITALES}")
+            return None
         # Detectar encoding
         with open(RUTA_HOSPITALES, 'rb') as f:
             det = chardet.detect(f.read())
