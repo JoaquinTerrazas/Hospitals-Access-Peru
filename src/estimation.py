@@ -5,10 +5,9 @@ import os
 import numpy as np
 from shapely.geometry import Point
 
-# ==================== CONFIGURACIÓN DE RUTAS ====================
-# Obtener la ruta base del proyecto (raíz del repositorio)
-current_dir = os.path.dirname(__file__)
-project_root = os.path.abspath(os.path.join(current_dir, ".."))
+# ==================== CONFIGURACIÓN DE RUTAS CORREGIDA ====================
+# Usar el directorio de trabajo actual (raíz del proyecto en Streamlit Cloud)
+project_root = os.getcwd()  # Esto devuelve /mount/src/hospitals-access-peru/
 data_dir = os.path.join(project_root, "data")
 
 # Rutas absolutas para Streamlit Cloud
@@ -16,12 +15,12 @@ RUTA_HOSPITALES = os.path.join(data_dir, "IPRESS.csv")
 RUTA_SHAPEFILE = os.path.join(data_dir, "shape_file", "DISTRITOS.shp")
 RUTA_CCPP = os.path.join(data_dir, "CCPP_0.zip")
 
-# Debug: Verificar rutas (útil para troubleshooting)
+# Debug: Verificar rutas
 print(f"Project root: {project_root}")
 print(f"Data directory: {data_dir}")
 print(f"Hospitales path: {RUTA_HOSPITALES}")
-print(f"Shapefile path: {RUTA_SHAPEFILE}")
-print(f"CCPP path: {RUTA_CCPP}")
+print(f"Shapefile existe: {os.path.exists(RUTA_HOSPITALES)}")
+print(f"CCPP existe: {os.path.exists(RUTA_CCPP)}")
 
 def load_and_clean_hospitals():
     """Cargar y limpiar datos de hospitales"""
@@ -29,6 +28,7 @@ def load_and_clean_hospitals():
         # Verificar si el archivo existe
         if not os.path.exists(RUTA_HOSPITALES):
             print(f"ERROR: Archivo no encontrado en {RUTA_HOSPITALES}")
+            print(f"Contenido de data/: {os.listdir(data_dir) if os.path.exists(data_dir) else 'No existe'}")
             return None
         # Detectar encoding
         with open(RUTA_HOSPITALES, 'rb') as f:

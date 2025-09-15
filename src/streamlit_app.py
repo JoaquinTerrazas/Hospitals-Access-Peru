@@ -6,6 +6,7 @@ import tempfile
 import os
 import sys
 
+
 # ==================== CORRECCIÓN DE IMPORTACIONES ====================
 # Agregar la carpeta src al path para importaciones correctas
 current_dir = os.path.dirname(__file__)
