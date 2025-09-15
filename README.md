@@ -1,6 +1,6 @@
 # Hospitals-Access-Peru.
 
-##Proceso de Filtrado de Hospitales
+## Proceso de Filtrado de Hospitales
 
 ###  Paso 1: Carga del dataset
 - Se cargó el archivo IPRESS completo del MINSA.  
