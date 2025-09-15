@@ -1,10 +1,4 @@
 import streamlit as st
-import pandas as pd
-import matplotlib.pyplot as plt
-import folium
-import tempfile
-import os
-import sys
 
 # ==================== CONFIGURACIÓN DE LA PÁGINA ====================
 st.set_page_config(
@@ -13,6 +7,13 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+import pandas as pd
+import matplotlib.pyplot as plt
+import folium
+import tempfile
+import os
+import sys
 
 # ==================== DEBUG TEMPORAL ====================
 # Mostrar información del sistema para debugging
