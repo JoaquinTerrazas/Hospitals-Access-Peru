@@ -6,6 +6,15 @@ import tempfile
 import os
 import sys
 
+# ==================== DEBUG TEMPORAL ====================
+# Mostrar información del sistema para debugging
+st.write(f" DEBUG: Directorio actual: {os.getcwd()}")
+st.write(f" DEBUG: Contenido raíz: {os.listdir('.')}")
+if os.path.exists('data'):
+    st.write(f" DEBUG: Contenido data/: {os.listdir('data')}")
+else:
+    st.warning(" DEBUG: Carpeta 'data' no existe")
+
 
 # ==================== CORRECCIÓN DE IMPORTACIONES ====================
 # Agregar la carpeta src al path para importaciones correctas
