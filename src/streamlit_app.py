@@ -6,6 +6,14 @@ import tempfile
 import os
 import sys
 
+# ==================== CONFIGURACIÓN DE LA PÁGINA ====================
+st.set_page_config(
+    page_title="Hospital Access Peru Analysis",
+    page_icon="🏥",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
 # ==================== DEBUG TEMPORAL ====================
 # Mostrar información del sistema para debugging
 st.write(f" DEBUG: Directorio actual: {os.getcwd()}")
