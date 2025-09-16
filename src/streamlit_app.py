@@ -15,14 +15,6 @@ import folium
 import tempfile
 import os
 import sys
-import gc
-import logging
-import time
-from datetime import datetime
-
-# Configurar logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 # ==================== CORRECCIÓN DE IMPORTACIONES ====================
 # Agregar la carpeta src al path para importaciones correctas
@@ -32,7 +24,7 @@ sys.path.insert(0, current_dir)
 # Importar módulos después de configurar el path
 try:
     from estimation import load_all_data
-    from plot import generate_all_visualizations, cleanup_matplotlib_figures
+    from plot import generate_all_visualizations
 except ImportError as e:
     st.error(f"Error importing modules: {e}")
     st.stop()
@@ -43,118 +35,54 @@ def show_folium_map(folium_map, width=700, height=500):
         st.warning("Mapa no disponible")
         return
     
-    temp_file = None
     try:
         # Crear archivo temporal
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.html', mode='w', encoding='utf-8') as f:
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.html') as f:
             folium_map.save(f.name)
-            temp_file = f.name
+            html_file = f.name
         
         # Leer y mostrar el HTML
-        with open(temp_file, 'r', encoding='utf-8') as f:
+        with open(html_file, 'r', encoding='utf-8') as f:
             html_content = f.read()
         
         # Mostrar como componente
         st.components.v1.html(html_content, width=width, height=height, scrolling=True)
         
+        # Limpiar archivo temporal
+        os.unlink(html_file)
+        
     except Exception as e:
         st.error(f"Error mostrando mapa: {e}")
-        logger.error(f"Error in show_folium_map: {e}")
-    finally:
-        # Limpiar archivo temporal
-        if temp_file and os.path.exists(temp_file):
-            try:
-                os.unlink(temp_file)
-            except Exception:
-                pass
-
-def display_health_check():
-    """Mostrar indicadores de salud de la aplicación"""
-    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    st.sidebar.markdown(f"**Última actualización:** {current_time}")
-    
-    # Verificar memoria
-    try:
-        import psutil
-        process = psutil.Process()
-        memory_mb = process.memory_info().rss / 1024 / 1024
-        st.sidebar.metric("Memoria (MB)", f"{memory_mb:.1f}")
-    except:
-        pass
 
 # Título principal
 st.title("🏥 Análisis de Acceso a Hospitales en Perú")
 st.markdown("---")
 
-# Health check
-display_health_check()
-
 # Cargar datos (solo cache para datos, no para visualizaciones)
-@st.cache_data(show_spinner="Cargando datos...", ttl=3600)  # Cache por 1 hora
+@st.cache_data(show_spinner="Cargando datos...")
 def load_cached_data():
-    """Cargar datos con manejo robusto de errores"""
     try:
-        logger.info("Loading data...")
-        data = load_all_data()
-        if data is None:
-            logger.error("load_all_data returned None")
-            return None
-        
-        logger.info(f"Data loaded successfully. Dataset shape: {data.get('dataset_cv', pd.DataFrame()).shape}")
-        return data
+        return load_all_data()
     except Exception as e:
-        logger.error(f"Error in load_cached_data: {e}")
         st.error(f"Error loading data: {e}")
         return None
 
-def generate_visualizations_safe(data_dict, vis_type="all"):
-    """Generar visualizaciones de manera segura con control de memoria"""
+# Función para generar visualizaciones sin cache (porque Folium no es serializable)
+def generate_visualizations_no_cache(data_dict):
+    """Generar visualizaciones sin cache para evitar problemas de serialización"""
     try:
-        if vis_type == "static":
-            # Solo mapas estáticos y gráficos
-            from plot import create_static_maps, create_department_bar_chart
-            return {
-                'static_maps': create_static_maps(data_dict['map_data']),
-                'bar_chart': create_department_bar_chart(data_dict['dept_stats']),
-            }
-        elif vis_type == "dynamic":
-            # Solo mapas dinámicos
-            from plot import create_national_folium_map, create_proximity_maps
-            return {
-                'national_map': create_national_folium_map(data_dict['map_data'], data_dict['dataset_cv']),
-                'proximity_maps': create_proximity_maps(
-                    data_dict['lima_analysis'], 
-                    data_dict['loreto_analysis'], 
-                    data_dict['gdf_hospitales']
-                )
-            }
-        else:
-            # Todas las visualizaciones
-            return generate_all_visualizations(data_dict)
-            
+        return generate_all_visualizations(data_dict)
     except Exception as e:
-        logger.error(f"Error generating visualizations: {e}")
         st.error(f"Error generating visualizations: {e}")
         return None
 
 # Cargar datos
-with st.spinner("Inicializando aplicación..."):
-    data_dict = load_cached_data()
+data_dict = load_cached_data()
 
 # Verificar que los datos se cargaron correctamente
 if data_dict is None or data_dict.get('dataset_cv') is None:
-    st.error("❌ Error al cargar los datos. Por favor verifica las rutas de los archivos.")
-    st.info("Verifica que los archivos estén en las rutas correctas:")
-    st.code("""
-    data/
-    ├── IPRESS.csv
-    ├── CCPP_0.zip  
-    └── shape_file/
-        └── DISTRITOS.shp
-    """)
+    st.error("Error al cargar los datos. Por favor verifica las rutas de los archivos.")
     st.stop()
-
-st.success("✅ Datos cargados correctamente")
 
 # Crear pestañas
 tab1, tab2, tab3 = st.tabs([
@@ -206,37 +134,23 @@ with tab1:
             st.metric("Distritos sin Hospitales", zero_hospitals)
     except Exception as e:
         st.error(f"Error displaying metrics: {e}")
-        logger.error(f"Error in metrics display: {e}")
     
     # Mostrar sample de datos
     st.subheader("Muestra de Datos de Hospitales")
     try:
-        sample_data = data_dict['dataset_cv'][['NOMBRE', 'DEPARTAMENTO', 'LATITUD', 'LONGITUD']].head(10)
-        st.dataframe(sample_data, use_container_width=True)
+        st.dataframe(data_dict['dataset_cv'][['NOMBRE', 'DEPARTAMENTO', 'LATITUD', 'LONGITUD']].head(10))
     except Exception as e:
         st.error(f"Error displaying data sample: {e}")
-        logger.error(f"Error in data sample display: {e}")
 
 with tab2:
     st.header("Mapas Estáticos y Análisis Departamental")
     
-    # Limpiar visualizaciones previas si existen
-    if hasattr(st.session_state, 'tab2_visualizations'):
-        cleanup_matplotlib_figures(st.session_state.tab2_visualizations)
-        del st.session_state.tab2_visualizations
-        gc.collect()
+    # Solo generar visualizaciones cuando se accede a esta pestaña
+    if 'tab2_visualizations' not in st.session_state:
+        with st.spinner("Generando mapas estáticos..."):
+            st.session_state.tab2_visualizations = generate_visualizations_no_cache(data_dict)
     
-    # Generar solo visualizaciones estáticas
-    with st.spinner("Generando mapas estáticos..."):
-        try:
-            static_visualizations = generate_visualizations_safe(data_dict, vis_type="static")
-            st.session_state.tab2_visualizations = static_visualizations
-        except Exception as e:
-            st.error(f"Error generando visualizaciones estáticas: {e}")
-            logger.error(f"Error in static visualizations: {e}")
-            static_visualizations = None
-    
-    visualizations = st.session_state.get('tab2_visualizations')
+    visualizations = st.session_state.tab2_visualizations
     
     # Mapas estáticos
     st.subheader("Mapas de Distribución de Hospitales")
@@ -247,30 +161,26 @@ with tab2:
             
             with col1:
                 if 'map1_hospitales_distrito' in visualizations['static_maps']:
-                    st.pyplot(visualizations['static_maps']['map1_hospitales_distrito'], 
-                             use_container_width=True)
+                    st.pyplot(visualizations['static_maps']['map1_hospitales_distrito'])
                     st.caption("Mapa 1: Hospitales por Distrito")
                 else:
                     st.warning("Mapa 1 no disponible")
             
             with col2:
                 if 'map2_distritos_sin_hospitales' in visualizations['static_maps']:
-                    st.pyplot(visualizations['static_maps']['map2_distritos_sin_hospitales'], 
-                             use_container_width=True)
+                    st.pyplot(visualizations['static_maps']['map2_distritos_sin_hospitales'])
                     st.caption("Mapa 2: Distritos sin Hospitales")
                 else:
                     st.warning("Mapa 2 no disponible")
             
             if 'map3_top10_distritos' in visualizations['static_maps']:
-                st.pyplot(visualizations['static_maps']['map3_top10_distritos'], 
-                         use_container_width=True)
+                st.pyplot(visualizations['static_maps']['map3_top10_distritos'])
                 st.caption("Mapa 3: Top 10 Distritos con Más Hospitales")
             else:
                 st.warning("Mapa 3 no disponible")
                 
         except Exception as e:
             st.error(f"Error displaying static maps: {e}")
-            logger.error(f"Error displaying static maps: {e}")
     else:
         st.error("Error generando mapas estáticos")
     
@@ -280,13 +190,12 @@ with tab2:
     try:
         # Tabla resumen
         st.write("**Tabla Resumen - Hospitales por Departamento**")
-        st.dataframe(data_dict['dept_stats'].sort_values('total_hospitals', ascending=False),
-                    use_container_width=True)
+        st.dataframe(data_dict['dept_stats'].sort_values('total_hospitals', ascending=False))
         
         # Gráfico de barras
         st.write("**Gráfico de Barras - Distribución por Departamento**")
         if visualizations and visualizations.get('bar_chart'):
-            st.pyplot(visualizations['bar_chart'], use_container_width=True)
+            st.pyplot(visualizations['bar_chart'])
         else:
             st.error("Error generando gráfico de barras")
         
@@ -305,27 +214,16 @@ with tab2:
             
     except Exception as e:
         st.error(f"Error in department analysis: {e}")
-        logger.error(f"Error in department analysis: {e}")
 
 with tab3:
     st.header("Mapas Interactivos Dinámicos")
     
-    # Limpiar visualizaciones previas si existen
-    if hasattr(st.session_state, 'tab3_visualizations'):
-        del st.session_state.tab3_visualizations
-        gc.collect()
-    
-    # Generar solo visualizaciones dinámicas
-    with st.spinner("Generando mapas interactivos..."):
-        try:
-            dynamic_visualizations = generate_visualizations_safe(data_dict, vis_type="dynamic")
-            st.session_state.tab3_visualizations = dynamic_visualizations
-        except Exception as e:
-            st.error(f"Error generando visualizaciones dinámicas: {e}")
-            logger.error(f"Error in dynamic visualizations: {e}")
-            dynamic_visualizations = None
+    # Solo generar visualizaciones cuando se accede a esta pestaña
+    if 'tab3_visualizations' not in st.session_state:
+        with st.spinner("Generando mapas interactivos..."):
+            st.session_state.tab3_visualizations = generate_visualizations_no_cache(data_dict)
 
-    visualizations = st.session_state.get('tab3_visualizations')
+    visualizations = st.session_state.tab3_visualizations
     
     # Mapa nacional
     st.subheader("Mapa Nacional - Hospitales por Distrito")
@@ -399,14 +297,7 @@ with tab3:
         
     except Exception as e:
         st.error(f"Error in proximity maps: {e}")
-        logger.error(f"Error in proximity maps: {e}")
 
 # Footer
 st.markdown("---")
 st.caption("© 2024 - Análisis de Acceso a Hospitales en Perú | Datos: MINSA - IPRESS")
-
-# Cleanup al final
-try:
-    gc.collect()
-except:
-    pass
